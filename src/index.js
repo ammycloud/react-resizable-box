@@ -1,6 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import Resizer from './resizer';
-import isEqual from 'lodash.isequal';
+import {isEqual} from 'lodash';
+import cloneElement from './cloneElement';
+import ReactDOM from 'react-dom';
 
 const clamp = (n, min, max) => Math.max(Math.min(n, max), min);
 const snap = (n, size) => Math.round(n / size) * size;
@@ -49,15 +51,6 @@ export default class Resizable extends Component {
       bottomLeft: PropTypes.bool,
       topLeft: PropTypes.bool,
     }),
-    customClass: PropTypes.string,
-    width: PropTypes.oneOfType([
-      PropTypes.number,
-      PropTypes.string,
-    ]),
-    height: PropTypes.oneOfType([
-      PropTypes.number,
-      PropTypes.string,
-    ]),
     minWidth: PropTypes.number,
     minHeight: PropTypes.number,
     maxWidth: PropTypes.number,
@@ -84,7 +77,7 @@ export default class Resizable extends Component {
 
   constructor(props) {
     super(props);
-    const { width, height } = props;
+    const { width, height } = props.style;
     this.state = {
       isActive: false,
       width,
@@ -181,7 +174,7 @@ export default class Resizable extends Component {
       width: width !== 'auto' ? newWidth : 'auto',
       height: height !== 'auto' ? newHeight : 'auto',
     });
-    const resizable = this.refs.resizable;
+    const resizable = ReactDOM.findDOMNode(this);
     const styleSize = {
       width: newWidth || this.state.width,
       height: newHeight || this.state.height,
@@ -200,7 +193,7 @@ export default class Resizable extends Component {
   onMouseUp() {
     const { isActive, direction, original } = this.state;
     if (!isActive) return;
-    const resizable = this.refs.resizable;
+    const resizable = ReactDOM.findDOMNode(this);
     const styleSize = this.getBoxSize();
     const clientSize = {
       width: resizable.clientWidth,
@@ -215,10 +208,11 @@ export default class Resizable extends Component {
   }
 
   onResizeStart(direction, e) {
+    const resizable = ReactDOM.findDOMNode(this);
     const ev = e.touches ? e.touches[0] : e;
     const clientSize = {
-      width: this.refs.resizable.clientWidth,
-      height: this.refs.resizable.clientHeight,
+      width: resizable.clientWidth,
+      height: resizable.clientHeight
     };
     this.props.onResizeStart(direction, this.getBoxSize(), clientSize, e);
     const size = this.getBoxSize();
@@ -238,7 +232,7 @@ export default class Resizable extends Component {
     let width = '0';
     let height = '0';
     if (typeof window !== 'undefined') {
-      const style = window.getComputedStyle(this.refs.resizable, null);
+      const style = window.getComputedStyle(ReactDOM.findDOMNode(this), null);
       width = ~~style.getPropertyValue('width').replace('px', '');
       height = ~~style.getPropertyValue('height').replace('px', '');
     }
@@ -272,7 +266,7 @@ export default class Resizable extends Component {
   renderResizer() {
     const { isResizable, handleStyle, handleClass } = this.props;
     return Object.keys(isResizable).map(dir => {
-      if (isResizable[dir] !== false) {
+        if (isResizable[dir] !== false) {
         return (
           <Resizer
             key={dir}
@@ -288,41 +282,19 @@ export default class Resizable extends Component {
   }
 
   render() {
-    const userSelect = this.state.isActive
-      ? {
-        userSelect: 'none',
-        MozUserSelect: 'none',
-        WebkitUserSelect: 'none',
-        MsUserSelect: 'none',
-      }
-      : {
-        userSelect: 'auto',
-        MozUserSelect: 'auto',
-        WebkitUserSelect: 'auto',
-        MsUserSelect: 'auto',
-      };
-    const style = this.getBoxStyle();
-    const { onClick, customStyle, customClass,
-            onMouseDown, onDoubleClick, onTouchStart } = this.props;
-    return (
-      <div
-        ref="resizable"
-        style={{
-          position: 'relative',
-          ...userSelect,
-          ...customStyle,
-          ...style,
-        }}
-        className={customClass}
-        onClick={onClick}
-        onMouseDown={onMouseDown}
-        onDoubleClick={onDoubleClick}
-        onTouchStart={onTouchStart}
-        {...this.props.extendsProps}
-      >
-        {this.props.children}
-        {this.renderResizer()}
-      </div>
-    );
+    const boxStyle = this.getBoxStyle();
+    const { children, style, ...props } = this.props;
+
+    return cloneElement(children, {
+      ...props,
+      style: {
+        ...style,
+        ...boxStyle
+      },
+      children: [
+          children.props.children,
+          this.renderResizer()
+      ]
+    });
   }
 }
