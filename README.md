@@ -1,4 +1,4 @@
-# react-resizable-box
+# react-resizable-box + react-resizable
 
 Resizable component for React.
 
